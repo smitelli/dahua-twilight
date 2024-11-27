@@ -1,6 +1,9 @@
 '''
 Adapted from the Astral project
 Copyright 2009-2016, Simon Kennedy, sffjunkie+code@gmail.com
+Published under the Apache License 2.0
+https://github.com/sffjunkie/astral/blob/535a84b7cf83fbb7b40be32f621c5d9ab4b7472b/LICENSE
+
 https://github.com/sffjunkie/astral/blob/535a84b7cf83fbb7b40be32f621c5d9ab4b7472b/src/astral.py
 https://astral.readthedocs.io/en/latest/
 

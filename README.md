@@ -12,17 +12,17 @@ As far as I can tell, Amcrest cameras are simply Dahua cameras with the branding
 
 ## Background
 
-Dahua cameras have multiple **color modes** available: Full color for daylight or artificial lighting, and black-and-white (B&W) for low light situations. The B&W mode responds highly to infrared light, and these cameras tend to have an onboard IR LED for use with the B&W mode. Color/IR settings (as well as all the other color/exposure/noise reduction options) belong to a configuration element called a **profile**. Dahua uses names like "Day," "Night," and "General" but _the profile names do not necessarily correspond to the color mode._ You would do well to think of these as "Profile #1," "Profile #2," and so on instead.
+Dahua cameras have multiple **color modes** available: Full color for daylight or artificial lighting, and black-and-white (B&W) for low light situations. The B&W mode responds highly to infrared light, and these cameras tend to have an onboard IR LED for use with the B&W mode. Color/IR settings (as well as all the other color/exposure/noise reduction options) belong to a configuration element called a **profile**. Dahua uses names like **Day**, **Night**, and **General** but _the profile names do not necessarily correspond to the color mode._ You would do well to think of these as **Profile #1**, **Profile #2**, and so on instead.
 
-To be explicit, it is possible to configure the "Day" profile to be black-and-white with the IR LED enabled, and the "Night" profile for full color. The camera will let you do this, although for your own sanity it's best to use the profiles as they were intended. This example is merely to help you build your mental model and to try to explain why the (baffling) UI works the way it does.
+To be explicit, it is possible to configure the Day profile to be black-and-white with the IR LED enabled, and the Night profile for full color. The camera will let you do this, although for your own sanity it's best to use the profiles as they were intended. This example is merely to help you build your mental model and to try to explain why the (baffling) UI works the way it does.
 
-Profiles have scheduling options. The most straightforward options are "General," "Full-Time Day," and "Full-Time Night." Each of these sets the camera to use the corresponding named profile at all times.
+Profiles have **scheduling options**. The most straightforward options are **General**, **Full-Time Day**, and **Full-Time Night**. Each of these sets the camera to use the corresponding named profile at all times.
 
-Another option is "Schedule." This permits the user to manually set a sunrise and sunset time using a pair of sliders. The camera will switch to the "Day" profile whenever the time is between sunrise and sunset, and the "Night" profile from sunset to sunrise the following day. For best results, avoid using any "auto" options in these profiles -- especially for settings that pertain to color/B&W or IR light. The "General" profile is not used in Schedule mode.
+Another option is **Schedule**. This permits the user to manually set a sunrise and sunset time using a pair of sliders. The camera will switch to the Day profile whenever the time is between sunrise and sunset, and the Night profile from sunset to sunrise the following day. For best results, avoid using any "auto" options in these profiles -- especially for settings that pertain to color/B&W or IR light. The General profile is not used in Schedule mode.
 
-The final option is "Day/Night." This mode is a bit of a box of rats. The idea is that it will switch the camera between day and night settings based on the amount of light entering the camera. However, rather than switching between the "Day" and "Night" profiles as the Schedule mode does, it instead picks one of the profiles (who knows which one) and overrides a bunch of the color settings to make the camera automatically switch between color and B&W modes. Day/Night is a single-profile mode and does not support different color settings between day and night. _If you pick this mode, it will change setting within your profiles that you might not expect it to._
+The final option is **Day/Night**. This mode is a bit of a box of rats. The idea is that it will switch the camera between the Day and Night profiles based on the amount of light entering the camera. However, this commandeers the color settings under the camera's Day/Night sub-options and prevents things like e.g. the sensitivity from being changed. _If you pick this mode, it will change setting within your profiles that you might not expect it to._
 
-On top of that, the brightness thresholds for Day/Night are not very customizable, and can sometimes be tricked by (e.g.) the glare from up nearby headlights. In fact, after I pressure-washed my driveway and removed a surface layer of dark crud, one of my cameras started refusing to automatically switch to night mode due to the scene being insufficiently dark.
+The Day/Night selection logic can sometimes be tricked by (e.g.) the glare from up nearby headlights. In fact, after I pressure-washed my driveway and removed a surface layer of dark crud, one of my cameras started refusing to automatically switch to night mode due to the scene being insufficiently dark.
 
 ## dahua-twilight's Goals
 
@@ -67,6 +67,12 @@ dahua-twilight is made from several interconnected subsystems. This is a brief d
 
 TODO
 
+## Contributing
+
+In all honesty, I would prefer that you didn't. This project exists principally for use with my specific camera system based on my own very specific and bullheaded requirements. I'm not all that interested in adding functionality that I'm not going to use, and I especially don't want to incorporate features that I can't test. I do not own an extensive collection of camera hardware, and what I do own is part of a production system that I can't afford to dork around with.
+
+Having said that, I encourage anybody to poke through the code, fork it, extend it, whatever. All I ask is that you credit this project appropriately.
+
 ## License
 
-MIT
+MIT, except for a few bits I adapted from the [Astral](https://github.com/sffjunkie/astral) project.
