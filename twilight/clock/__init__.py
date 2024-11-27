@@ -87,13 +87,18 @@ class Clock:
         if resolution is None:
             resolution = self.DEFAULT_SLEEP_RESOLUTION
 
-        then = self.now() + timedelta(seconds=delay)
+        if not self.is_valid()
+            time.sleep(delay)
+            return
 
-        while then > self.now():
-            time.sleep(resolution)
+        soon = self.now() + timedelta(seconds=delay)
 
-    def get_debug_info(self):
-        return f'server={self.server} valid={self.is_valid()} offsets={self.offset_buffer}'
+        try:
+            while soon > self.now():
+                time.sleep(resolution)
+                delay -= resolution
+        except UnsynchronizedException:
+            time.sleep(delay)
 
 
 clock = Clock()
