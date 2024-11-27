@@ -87,7 +87,7 @@ class Clock:
         if resolution is None:
             resolution = self.DEFAULT_SLEEP_RESOLUTION
 
-        if not self.is_valid()
+        if not self.is_valid():
             time.sleep(delay)
             return
 
