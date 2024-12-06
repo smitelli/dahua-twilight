@@ -2,10 +2,9 @@
 Adapted from the Astral project
 Copyright 2009-2016, Simon Kennedy, sffjunkie+code@gmail.com
 Published under the Apache License 2.0
-https://github.com/sffjunkie/astral/blob/535a84b7cf83fbb7b40be32f621c5d9ab4b7472b/LICENSE
-
-https://github.com/sffjunkie/astral/blob/535a84b7cf83fbb7b40be32f621c5d9ab4b7472b/src/astral.py
 https://astral.readthedocs.io/en/latest/
+https://github.com/sffjunkie/astral/blob/535a84b7cf83fbb7b40be32f621c5d9ab4b7472b/LICENSE
+https://github.com/sffjunkie/astral/blob/535a84b7cf83fbb7b40be32f621c5d9ab4b7472b/src/astral.py
 
 Stripped down and streamlined to support only the following usage:
 
@@ -18,34 +17,84 @@ Stripped down and streamlined to support only the following usage:
 
     a.dusk_utc(datetime.now(), 35.7796, -78.6382)
     # datetime.datetime(2024, 6, 10, 0, 30, 11, 476830, tzinfo=....utc)
-
-Also tries extremely hard to avoid raising exceptions under any circumstances.
-In particular, when presented with arguments that refer to a position/date that
-has constant sunlight or constant night, the (dusk - dawn) time difference will
-be 24 hours or zero seconds, respectively.
-
-The depression angle is expressed in positive degrees below the horizon. The
-default depression represents the instant the top edge of the sun's disk enters
-(dawn) or leaves (dusk) view over an ideal horizon. For civil twilight use 6;
-nautical is 12; astronomical is 18.
 '''
 
 from datetime import datetime, timedelta, timezone
-from math import floor, degrees, radians, sin, cos, tan, asin, acos
+from math import degrees, radians, sin, cos, tan, asin, acos
 
 
 class TinyAstro:
-    DEFAULT_DEPRESSION = 50 / 60  # degrees below horizon
+    '''
+    Calculates any date's sunrise and sunset times for a location on Earth.
+
+    This adaptation tries extremely hard to avoid raising exceptions under any
+    circumstances. In particular, when presented with arguments that refer to a
+    location/date that has constant day or constant night, the (dusk - dawn)
+    time difference is 24 hours or zero seconds, respectively.
+
+    NOTE: When passing dates to this class, it is a wise idea to ignore all
+    prevailing date-handling wisdom and explicitly use naive datetimes in the
+    *local* time zone. The reason for this is to avoid any possibility of the
+    date being converted into UTC and (possibly) spilling over to an adjacent
+    day. As an example:
+
+        You are in the UTC-5 timezone and the sun sets at around 9pm. It is
+        8:30pm on July 1 and you want to know precisely when the sunset will
+        occur. From a timezone-aware datetime's perspective, the current UTC
+        time is 1:30am on July 2, which would produce *tomorrow's* sunset time
+        instead of what you actually wanted.
+
+    The returned datetime is always timezone aware in UTC -- this will *not*
+    have the same date spillover problem as the input date, but you will need to
+    remember to localize the times when you use them.
+
+    The depression angle is expressed in positive degrees below the horizon. The
+    default depression represents the instant the top edge of the sun's disk
+    enters (dawn) or leaves (dusk) view over an ideal horizon (= 0.833 degrees).
+    For civil twilight use 6; nautical is 12; astronomical is 18.
+    '''
+
+    DEFAULT_DEPRESSION = 5 / 6  # degrees below horizon
     DIR_RISING = 1
     DIR_SETTING = -1
 
     def dawn_utc(self, date, latitude, longitude, depression=None):
+        '''
+        Calculate the dawn/sunrise time for a date at the given location.
+
+        Params:
+            date: Instance of datetime.datetime; the calendar day to calculate.
+            latitude: -90 to 90; negatives are on the southern hemisphere.
+            longitude: -180 to 180; negatives are on the western hemisphere.
+            depression: Positive degrees below the horizon. This is the position
+                of the center of the sun at the calculated time. Defaults to
+                the position where the top of the sun crosses the horizon.
+
+        Returns:
+            datetime.datetime of the provided `date` with the time adjusted to
+            the dawn/sunrise time at this location.
+        '''
         if depression is None:
             depression = self.DEFAULT_DEPRESSION
 
         return self._calc_time(90 + depression, self.DIR_RISING, date, latitude, longitude)
 
     def dusk_utc(self, date, latitude, longitude, depression=None):
+        '''
+        Calculate the dusk/sunset time for a date at the given location.
+
+        Params:
+            date: Instance of datetime.datetime; the calendar day to calculate.
+            latitude: -90 to 90; negatives are on the southern hemisphere.
+            longitude: -180 to 180; negatives are on the western hemisphere.
+            depression: Positive degrees below the horizon. This is the position
+                of the center of the sun at the calculated time. Defaults to
+                the position where the top of the sun crosses the horizon.
+
+        Returns:
+            datetime.datetime of the provided `date` with the time adjusted to
+            the dusk/sunset time at this location.
+        '''
         if depression is None:
             depression = self.DEFAULT_DEPRESSION
 
@@ -156,7 +205,7 @@ class TinyAstro:
         eqtime = self._eq_of_time(t)
         solar_dec = self._sun_declination(t)
 
-        hourangle = -self._hour_angle(latitude, solar_dec, 90 + 0.833)
+        hourangle = -self._hour_angle(latitude, solar_dec, 90 + (5 / 6))
 
         delta = -longitude - hourangle
         time_diff = 4 * delta
@@ -182,7 +231,7 @@ class TinyAstro:
         hour = time_utc / 60
         minute = time_utc % 60
         second = (time_utc % 1) * 60
-        usec = (second - floor(second)) * 1000000
+        usec = (second % 1) * 1_000_000
 
         return datetime(
             date.year, date.month, date.day, int(hour), int(minute), int(second), int(usec), tzinfo=timezone.utc)
