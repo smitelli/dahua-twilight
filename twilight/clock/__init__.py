@@ -5,7 +5,6 @@ from . import sntp
 from config import config
 
 OWN_EPOCH = datetime(2024, 11, 1, tzinfo=timezone.utc)
-CLOCK_CONFIG = config.get_clock_config()
 
 
 class UnsynchronizedException(Exception):
@@ -13,11 +12,11 @@ class UnsynchronizedException(Exception):
 
 
 class Clock:
-    DEFAULT_SLEEP_RESOLUTION = CLOCK_CONFIG.get('default_sleep_resolution', 0.25)
-    MAX_SYNC_AGE = CLOCK_CONFIG.get('max_sync_age', 64)
-    OFFSET_BUFFER_SIZE = CLOCK_CONFIG.get('offset_buffer_size', 10)
-    SERVER_PORT = CLOCK_CONFIG.get('server_port', 123)
-    SERVER_TIMEOUT = CLOCK_CONFIG.get('server_timeout', 2)
+    DEFAULT_SLEEP_RESOLUTION = config.gimme('clock.default_sleep_resolution')
+    MAX_SYNC_AGE = config.gimme('clock.max_sync_age')
+    OFFSET_BUFFER_SIZE = config.gimme('clock.offset_buffer_size')
+    SERVER_PORT = config.gimme('clock.server_port')
+    SERVER_TIMEOUT = config.gimme('clock.server_timeout')
 
     @staticmethod
     def intraday_delta(d1, d2):

@@ -1,12 +1,49 @@
-import datetime
 import pathlib
 import re
 import tomllib
 from ipaddress import IPv4Address, IPv6Address, IPv6Interface
-from zoneinfo import ZoneInfo
 
 CONFIG_FILENAME = 'config.toml'
 SELF_DIR = pathlib.Path(__file__).parent.resolve()
+
+CONFIG_SCHEMA = {
+    'astro': {
+        'depression': {'default': None},
+        'latitude': {},
+        'longitude': {},
+        'time_zone': {},
+    },
+    'clock': {
+        'default_sleep_resolution': {'default': 0.25},
+        'max_sync_age': {'default': 64},
+        'offset_buffer_size': {'default': 10},
+        'server_port': {'default': 123},
+        'server_timeout': {'default': 2},
+    },
+    'discover': {
+        'max_age': {'default': 128},
+        'port': {'default': 5050},
+        'timeout': {'default': 10},
+    },
+    'interval': {
+        'repeat': {'default': {'hours': 1}},
+        'start_time': {'default': None},
+    },
+}
+
+CAMERA_CONFIG_SCHEMA = {
+    'admin_host': {'default': None},
+    'admin_password': {},
+    'admin_port': {'default': None},
+    'admin_protocol': {'default': 'http'},
+    'admin_username': {},
+    'hostname': {'default': None},
+    'id': {'default': None},
+    'ipv4': {'default': None},
+    'ipv6': {'default': None},
+    'mac': {'default': None},
+    'serial': {'default': None},
+}
 
 
 class ConfigError(Exception):
@@ -20,41 +57,6 @@ class Config:
     def get_config_dict(self):
         with open(self.config_file, 'rb') as f:
             return tomllib.load(f)
-
-    def get_astro_config(self):
-        config = self.get_config_dict()
-
-        tz = config['astro']['time_zone']
-        lat = config['astro']['latitude']
-        lon = config['astro']['longitude']
-        dep = config['astro'].get('depression')
-
-        return (ZoneInfo(tz), lat, lon, dep)
-
-    def get_clock_config(self):
-        config = self.get_config_dict()
-
-        return config.get('clock')
-
-    def get_discover_config(self):
-        config = self.get_config_dict()
-
-        port = config.get('discover', {}).get('port', 5050)
-        timeout = config.get('discover', {}).get('timeout', 10)
-        max_age = config.get('discover', {}).get('max_age', 128)
-
-        return (port, timeout, max_age)
-
-    def get_interval_config(self):
-        config = self.get_config_dict()
-
-        start_time = config.get('interval', {}).get('start_time', datetime.time())
-        if not isinstance(start_time, datetime.time):
-            raise ConfigError('interval.start_time should be a "local time" object')
-
-        interval = config.get('interval', {}).get('repeat', {'hours': 1})
-
-        return (start_time, datetime.timedelta(**interval))
 
     def get_camera_config(self, cam_packet):
         config = self.get_config_dict()
@@ -94,6 +96,47 @@ class Config:
                 return config_candidate
 
         return None
+
+    def gimme(self, lookup):
+        cfg = self.get_config_dict()
+        parts = lookup.split('.')
+
+        if len(parts) == 2:
+            section, key = parts
+
+            try:
+                schema = CONFIG_SCHEMA[section][key]
+            except KeyError:
+                raise ConfigError(f'not a valid config lookup: {lookup}')
+
+            try:
+                return cfg[section][key]
+            except KeyError:
+                pass
+
+            try:
+                return schema['default']
+            except KeyError:
+                raise ConfigError(f'config key is required: {lookup}')
+
+        raise ConfigError(f'not a valid config lookup: {lookup}')
+
+    @staticmethod
+    def cam_gimme(cam_cfg, key):
+        try:
+            schema = CAMERA_CONFIG_SCHEMA[key]
+        except KeyError:
+            raise ConfigError(f'not a valid camera config lookup: {key}')
+
+        try:
+            return cam_cfg[key]
+        except KeyError:
+            pass
+
+        try:
+            return schema['default']
+        except KeyError:
+            raise ConfigError(f'camera config key is required: {key}')
 
 
 config = Config()

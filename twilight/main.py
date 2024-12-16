@@ -1,6 +1,8 @@
+import datetime
 import socket
 import threading
 from enum import Enum
+from zoneinfo import ZoneInfo
 
 from astro import TinyAstro
 from clock import clock, UnsynchronizedException
@@ -25,9 +27,8 @@ def receive_loop():
     last_offset = None  # DEBUG
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    port, timeout, max_age = config.get_discover_config()
-    sock.settimeout(timeout)
-    sock.bind(('', port))
+    sock.settimeout(config.gimme('discover.timeout'))
+    sock.bind(('', config.gimme('discover.port')))
 
     while True:
         if clock.offset_buffer[0] != last_offset:  # DEBUG
@@ -60,7 +61,7 @@ def receive_loop():
                     inventory.register(packet)
                     log.print_gossip(packet.hostname)
 
-                inventory.do_expirations(max_age=max_age)
+                inventory.do_expirations(max_age=config.gimme('discover.max_age'))
 
                 tlock.release()
 
@@ -107,13 +108,13 @@ if __name__ == '__main__':
             continue
 
         if next_run is None:
-            initial_run, interval = config.get_interval_config()
+            start_time = config.gimme('interval.start_time') or datetime.time()
 
             next_run = now.replace(
-                hour=initial_run.hour, minute=initial_run.minute,
-                second=initial_run.second, microsecond=initial_run.microsecond)
+                hour=start_time.hour, minute=start_time.minute,
+                second=start_time.second, microsecond=start_time.microsecond)
             while next_run < now:
-                next_run = next_run + interval
+                next_run += datetime.timedelta(**config.gimme('interval.repeat'))
 
             log.print(f'next run: {next_run.astimezone().isoformat()}')
 
@@ -125,9 +126,12 @@ if __name__ == '__main__':
 
         log.print('--- main loop running ---')
 
-        ast = TinyAstro()
-        tz, latitude, longitude, depression = config.get_astro_config()
+        tz = ZoneInfo(config.gimme('astro.time_zone'))
+        latitude = config.gimme('astro.latitude')
+        longitude = config.gimme('astro.longitude')
+        depression = config.gimme('astro.depression')
         local_today = now.astimezone(tz).replace(tzinfo=None)
+        ast = TinyAstro()
         new_start = ast.dawn_utc(local_today, latitude, longitude, depression)
         new_end = ast.dusk_utc(local_today, latitude, longitude, depression)
 
