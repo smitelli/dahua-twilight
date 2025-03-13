@@ -7,6 +7,8 @@ from clock import clock
 
 def nth_weekday(year, month, weekday, n):
     '''
+    year: use current year unless you have a reason not to
+    month: 1=jan, 12=dec
     weekday: 0=sunday, 6=saturday
     n: 1=first, 2=second, -1=last, -2=second-last
     '''
@@ -187,14 +189,15 @@ class DahuaDayNightClient(DahuaClient):
             'VideoInOptions[0].NightOptions.SunsetMinute': set_.minute,
             'VideoInOptions[0].NightOptions.SunsetSecond': set_.second})
 
-    def get_dst(self, tz):
+    def get_dst_in_effect(self, camera_tz):
         if self.cached_dst is None:
             config = self.read_config('Locales')
-            now = clock.now().astimezone(tz)
 
             if config['table.Locales.DSTEnable'] != 'true':
                 self.cached_dst = False
                 return self.cached_dst
+
+            now = clock.now()
 
             beg_mo = int(config['table.Locales.DSTStart.Month'])
             beg_wk = int(config['table.Locales.DSTStart.Week'])
@@ -209,16 +212,20 @@ class DahuaDayNightClient(DahuaClient):
             end_m = int(config['table.Locales.DSTEnd.Minute'])
 
             if config['table.Locales.WeekEnable'] != 'true':
-                # specific date mode
+                # Specific date mode
                 beg = datetime(now.year, beg_mo, beg_dy)
                 end = datetime(now.year, end_mo, end_dy)
             else:
-                # nth-week mode
+                # Nth week mode
                 beg = nth_weekday(now.year, beg_mo, beg_dy, beg_wk)
                 end = nth_weekday(now.year, end_mo, end_dy, end_wk)
 
-            beg = beg.replace(hour=beg_h, minute=beg_m, tzinfo=tz)
-            end = end.replace(hour=end_h, minute=end_m, tzinfo=tz)
+            # Tricky here: If the camera configured in Eastern (-5:00) this is
+            # always the offset encoded in `tz`, even when DST is in effect.
+            # DST ends at 2am-4:00, but we have to compute it as though it were
+            # 1am-5:00.
+            beg = beg.replace(hour=beg_h, minute=beg_m, tzinfo=camera_tz)
+            end = end.replace(hour=end_h - 1, minute=end_m, tzinfo=camera_tz)
 
             self.cached_dst = (beg <= now < end)
 
@@ -233,9 +240,11 @@ class DahuaDayNightClient(DahuaClient):
                 raise DahuaClientException('NTP/ONVIF timezone mismatch')
 
             offset_h, offset_m = self.TZ_OFFSET_DATA[int(tz_num)]
+            tz = timezone(timedelta(hours=offset_h, minutes=offset_m))
 
-            self.get_dst()
+            if self.get_dst_in_effect(tz=tz):
+                tz = timezone(timedelta(hours=offset_h + 1, minutes=offset_m))
 
-            self.cached_timezone = timezone(timedelta(hours=offset_h, minutes=offset_m))
+            self.cached_timezone = tz
 
         return self.cached_timezone
