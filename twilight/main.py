@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
         if next_run > now:
             clock.sleep(1)
-            continue
+            #continue TODO
 
         next_run = None
 

@@ -1,8 +1,35 @@
 import re
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from .base_client import DahuaClient, DahuaClientException
 from clock import clock
+
+
+def nth_weekday(year, month, weekday, n):
+    '''
+    weekday: 0=sunday, 6=saturday
+    n: 1=first, 2=second, -1=last, -2=second-last
+    '''
+    if n < 0:
+        month += 1
+        if month > 12:
+            month = 1
+            year += 1
+
+    dt = datetime(year, month, 1)
+
+    while (dt.isoweekday() % 7) != weekday:
+        dt += timedelta(days=1)
+
+    while n > 1:
+        dt += timedelta(days=7)
+        n -= 1
+
+    while n < 0:
+        dt -= timedelta(days=7)
+        n += 1
+
+    return dt
 
 
 class CAMERA_PROFILE(Enum):
@@ -29,6 +56,7 @@ class DahuaDayNightClient(DahuaClient):
         self.clear_cache()
 
     def clear_cache(self):
+        self.cached_dst = None
         self.cached_timezone = None
 
     def get_camera_profile(self):
@@ -159,6 +187,43 @@ class DahuaDayNightClient(DahuaClient):
             'VideoInOptions[0].NightOptions.SunsetMinute': set_.minute,
             'VideoInOptions[0].NightOptions.SunsetSecond': set_.second})
 
+    def get_dst(self, tz):
+        if self.cached_dst is None:
+            config = self.read_config('Locales')
+            now = clock.now().astimezone(tz)
+
+            if config['table.Locales.DSTEnable'] != 'true':
+                self.cached_dst = False
+                return self.cached_dst
+
+            beg_mo = int(config['table.Locales.DSTStart.Month'])
+            beg_wk = int(config['table.Locales.DSTStart.Week'])
+            beg_dy = int(config['table.Locales.DSTStart.Day'])
+            beg_h = int(config['table.Locales.DSTStart.Hour'])
+            beg_m = int(config['table.Locales.DSTStart.Minute'])
+
+            end_mo = int(config['table.Locales.DSTEnd.Month'])
+            end_wk = int(config['table.Locales.DSTEnd.Week'])
+            end_dy = int(config['table.Locales.DSTEnd.Day'])
+            end_h = int(config['table.Locales.DSTEnd.Hour'])
+            end_m = int(config['table.Locales.DSTEnd.Minute'])
+
+            if config['table.Locales.WeekEnable'] != 'true':
+                # specific date mode
+                beg = datetime(now.year, beg_mo, beg_dy)
+                end = datetime(now.year, end_mo, end_dy)
+            else:
+                # nth-week mode
+                beg = nth_weekday(now.year, beg_mo, beg_dy, beg_wk)
+                end = nth_weekday(now.year, end_mo, end_dy, end_wk)
+
+            beg = beg.replace(hour=beg_h, minute=beg_m, tzinfo=tz)
+            end = end.replace(hour=end_h, minute=end_m, tzinfo=tz)
+
+            self.cached_dst = (beg <= now < end)
+
+        return self.cached_dst
+
     def get_timezone(self):
         if self.cached_timezone is None:
             config = self.read_config(('NTP', 'OnvifDevice'))
@@ -168,6 +233,8 @@ class DahuaDayNightClient(DahuaClient):
                 raise DahuaClientException('NTP/ONVIF timezone mismatch')
 
             offset_h, offset_m = self.TZ_OFFSET_DATA[int(tz_num)]
+
+            self.get_dst()
 
             self.cached_timezone = timezone(timedelta(hours=offset_h, minutes=offset_m))
 
