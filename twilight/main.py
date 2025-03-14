@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
         if next_run > now:
             clock.sleep(1)
-            #continue TODO
+            continue
 
         next_run = None
 
@@ -188,4 +188,3 @@ if __name__ == '__main__':
 
         log.print('--- main loop sleeping ---')
         tlock.release()
-        breakpoint()  # TODO

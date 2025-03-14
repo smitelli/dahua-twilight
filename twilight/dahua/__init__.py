@@ -242,7 +242,7 @@ class DahuaDayNightClient(DahuaClient):
             offset_h, offset_m = self.TZ_OFFSET_DATA[int(tz_num)]
             tz = timezone(timedelta(hours=offset_h, minutes=offset_m))
 
-            if self.get_dst_in_effect(tz=tz):
+            if self.get_dst_in_effect(camera_tz=tz):
                 tz = timezone(timedelta(hours=offset_h + 1, minutes=offset_m))
 
             self.cached_timezone = tz
