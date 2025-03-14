@@ -75,7 +75,7 @@ def receive_loop():
 
 
 def different_enough(d1, d2):
-    return abs(clock.intraday_delta(d1, d2).total_seconds()) >= 1
+    return abs(clock.intraday_delta(d1, d2).total_seconds()) >= 2
 
 
 def thread_crash_hook(args):
@@ -135,6 +135,15 @@ if __name__ == '__main__':
         new_start = ast.dawn_utc(local_today, latitude, longitude, depression)
         new_end = ast.dusk_utc(local_today, latitude, longitude, depression)
 
+        using_schedule = False
+        if abs((new_end - new_start).total_seconds()) <= 60:
+            new_profile = CAMERA_PROFILE.FULL_TIME_NIGHT
+        elif abs((new_end - new_start).total_seconds()) >= (24 * 60 * 60) - 60:
+            new_profile = CAMERA_PROFILE.FULL_TIME_DAY
+        else:
+            new_profile = CAMERA_PROFILE.SCHEDULE
+            using_schedule = True
+
         tlock.acquire()
 
         for p in inventory.all_cameras():
@@ -150,13 +159,17 @@ if __name__ == '__main__':
             profile, consistent = dc.get_camera_profile()
             log.print(f'  {profile=} {consistent=}')
 
-            if not consistent or profile != CAMERA_PROFILE.SCHEDULE:
+            if not consistent or profile != new_profile:
                 log.print('  setting profile...')
-                dc.set_camera_profile(CAMERA_PROFILE.SCHEDULE)
+                dc.set_camera_profile(new_profile)
                 profile, consistent = dc.get_camera_profile()
-                log.print(f'  => profile set to {profile=} {consistent=}')
+                log.print(f'  => profile set: {profile=} {consistent=}')
             else:
                 log.print('  => no profile configuration changes')
+
+            if not using_schedule:
+                log.print('  skipping schedule; did not select a schedule-based profile')
+                continue
 
             old_start, old_end, consistent = dc.get_schedule()
             log.print(f'  sunrise={old_start.isoformat()} sunset={old_end.isoformat()} {consistent=}')
@@ -166,12 +179,13 @@ if __name__ == '__main__':
                 different_enough(old_start, new_start) or
                 different_enough(old_end, new_end)
             ):
-                log.print('  setting schedule')
+                log.print('  setting schedule...')
                 dc.set_schedule(new_start, new_end)
                 start, end, consistent = dc.get_schedule()
-                log.print(f'  => schedule set to sunrise={start.isoformat()} sunset={end.isoformat()} {consistent=}')
+                log.print(f'  => schedule set: sunrise={start.isoformat()} sunset={end.isoformat()} {consistent=}')
             else:
                 log.print('  => no schedule configuration changes')
 
         log.print('--- main loop sleeping ---')
         tlock.release()
+        breakpoint()  # TODO
