@@ -32,17 +32,17 @@ CONFIG_SCHEMA = {
 }
 
 CAMERA_CONFIG_SCHEMA = {
-    'admin_host': {'default': None},
+    'admin_host': {},
     'admin_password': {},
-    'admin_port': {'default': None},
+    'admin_port': {},
     'admin_protocol': {'default': 'http'},
     'admin_username': {},
-    'hostname': {'default': None},
-    'id': {'default': None},
-    'ipv4': {'default': None},
-    'ipv6': {'default': None},
-    'mac': {'default': None},
-    'serial': {'default': None},
+    'hostname': {'packet_key': 'hostname'},
+    'id': {'packet_key': 'Name'},
+    'ipv4': {'packet_key': 'ip'},
+    'ipv6': {'packet_key': 'IPv6Addr'},
+    'mac': {'packet_key': 'mac'},
+    'serial': {'packet_key': 'SerialNo'},
 }
 
 
@@ -59,23 +59,17 @@ class Config:
             return tomllib.load(f)
 
     def get_camera_config(self, cam_packet):
-        config = self.get_config_dict()
+        camera_configs = self.get_config_dict()['camera']
 
-        cfg_map = [  # dict key in config file, attr on CameraPacket instance
-            ('hostname', 'hostname'),
-            ('id', 'Name'),
-            ('serial', 'SerialNo'),
-            ('ipv4', 'ip'),
-            ('ipv6', 'IPv6Addr'),
-            ('mac', 'mac')]
-
-        for config_candidate in config['camera']:
+        for possible_cfg in camera_configs:
             found = True
-            for c_key, p_key in cfg_map:
-                if c_key not in config_candidate:
+            for c_key, schema in CAMERA_CONFIG_SCHEMA.items():
+                p_key = schema.get('packet_key')
+
+                if c_key not in possible_cfg or p_key is None:
                     continue
 
-                config_val = config_candidate.get(c_key)
+                config_val = possible_cfg[c_key]
                 packet_val = getattr(cam_packet, p_key)
 
                 match c_key:
@@ -91,9 +85,10 @@ class Config:
 
                 if config_val != packet_val:
                     found = False
+                    break
 
             if found:
-                return config_candidate
+                return possible_cfg
 
         return None
 
@@ -122,7 +117,7 @@ class Config:
         raise ConfigError(f'not a valid config lookup: {lookup}')
 
     @staticmethod
-    def cam_gimme(cam_cfg, key):
+    def cam_gimme(cam_cfg, key, call_default=None):
         try:
             schema = CAMERA_CONFIG_SCHEMA[key]
         except KeyError:
@@ -131,7 +126,8 @@ class Config:
         try:
             return cam_cfg[key]
         except KeyError:
-            pass
+            if call_default is not None:
+                return call_default
 
         try:
             return schema['default']

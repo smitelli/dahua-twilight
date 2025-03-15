@@ -16,9 +16,10 @@ class DahuaClient:
         if cam_config is None:
             raise DahuaClientException('failed to find any usable config for packet')
 
-        protocol = cam_config.get('admin_protocol', 'http')
-        host = cam_config.get('admin_host', packet.host)
-        port = cam_config.get('admin_port', packet.https_port if protocol == 'https' else packet.http_port)
+        protocol = config.cam_gimme(cam_config, 'admin_protocol')
+        default_port = packet.https_port if protocol == 'https' else packet.http_port
+        host = config.cam_gimme(cam_config, 'admin_host', packet.host)
+        port = config.cam_gimme(cam_config, 'admin_port', default_port)
 
         if (protocol, port) in (('http', 80), ('https', 443)):
             base_url = f'{protocol}://{host}'
@@ -27,8 +28,8 @@ class DahuaClient:
 
         return cls(
             base_url=base_url,
-            username=cam_config['admin_username'],
-            password=cam_config['admin_password'])
+            username=config.cam_gimme(cam_config, 'admin_username'),
+            password=config.cam_gimme(cam_config, 'admin_password'))
 
     def __init__(self, base_url, username, password):
         self.base_url = base_url

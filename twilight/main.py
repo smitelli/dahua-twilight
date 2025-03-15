@@ -147,7 +147,7 @@ if __name__ == '__main__':
         tlock.acquire()
 
         for p in inventory.all_cameras():
-            log.print(p.host, end=': ')
+            log.print(f'{p.hostname} ({p.host})', end=': ')
 
             try:
                 dc = DahuaDayNightClient.build_client(p)
