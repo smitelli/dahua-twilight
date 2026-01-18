@@ -31,30 +31,43 @@ class DahuaClient:
             username=config.cam_gimme(cam_config, 'admin_username'),
             password=config.cam_gimme(cam_config, 'admin_password'))
 
-    def __init__(self, base_url, username, password):
+    def __init__(self, base_url, username, password, timeout=10, max_retry=2):
         self.base_url = base_url
         self.username = username
         self.password = password
+        self.timeout = timeout
+        self.max_retry = max_retry
 
         self.auth = HTTPDigestAuth(username=self.username, password=self.password)
         self.session = requests.Session()
         self.session.auth = self.auth
 
+    def _request_get(self, **kwargs):
+        for _ in range(self.max_retry):
+            try:
+                response = self.session.get(**kwargs, timeout=self.timeout)
+
+                response.raise_for_status()
+
+                return response.text
+            except requests.Timeout:
+                continue
+
+        raise DahuaClientException(f'timed out after {self.max_retry} tries')
+
     def read_config(self, key_names):
-        response = self.session.get(
+        res_text = self._request_get(
             url=f'{self.base_url}/cgi-bin/configManager.cgi?action=getConfig',
             params=urlencode({'name': key_names}, doseq=True, quote_via=urlquote))
-        response.raise_for_status()
 
-        res_lines = response.text.splitlines(keepends=False)
+        res_lines = res_text.splitlines(keepends=False)
 
         return dict(line.split('=', maxsplit=1) for line in res_lines)
 
     def write_config(self, config_dict):
-        response = self.session.get(
+        res_text = self._request_get(
             url=f'{self.base_url}/cgi-bin/configManager.cgi?action=setConfig',
             params=urlencode(config_dict, quote_via=urlquote))
-        response.raise_for_status()
 
-        if not response.text.startswith('OK'):
-            raise DahuaClientException(response.text)
+        if not res_text.startswith('OK'):
+            raise DahuaClientException(res_text)
